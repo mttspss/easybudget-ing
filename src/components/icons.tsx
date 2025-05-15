@@ -13,15 +13,19 @@ import {
   Laptop,
   Loader2,
   LucideProps,
+  Menu,
   Moon,
   MoreVertical,
+  PieChart,
   Pizza,
   Plus,
   Settings,
+  Star,
   SunMedium,
   Trash,
   User,
   X,
+  Layout,
 } from "lucide-react";
 
 export const Icons = {
@@ -39,6 +43,10 @@ export const Icons = {
   sun: SunMedium,
   moon: Moon,
   laptop: Laptop,
+  menu: Menu,
+  star: Star,
+  layout: Layout,
+  pieChart: PieChart,
   google: ({ ...props }: LucideProps) => (
     <svg
       aria-hidden="true"

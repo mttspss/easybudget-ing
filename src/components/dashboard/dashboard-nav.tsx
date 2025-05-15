@@ -5,17 +5,20 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Icons } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { useSidebar } from "./sidebar-context";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-interface DashboardNavProps extends React.HTMLAttributes<HTMLElement> {}
+type DashboardNavProps = React.HTMLAttributes<HTMLElement>;
 
 export function DashboardNav({ className, ...props }: DashboardNavProps) {
   const pathname = usePathname();
+  const { isCollapsed, toggleSidebar } = useSidebar();
 
   const items = [
     {
       title: "Overview",
       href: "/dashboard",
-      icon: "settings",
+      icon: "layout",
     },
     {
       title: "Expenses",
@@ -30,7 +33,7 @@ export function DashboardNav({ className, ...props }: DashboardNavProps) {
     {
       title: "Budget",
       href: "/dashboard/budget",
-      icon: "pizza",
+      icon: "pieChart",
     },
     {
       title: "Settings",
@@ -40,37 +43,69 @@ export function DashboardNav({ className, ...props }: DashboardNavProps) {
   ];
 
   return (
-    <nav className={cn("flex flex-col space-y-2", className)} {...props}>
-      {items.map((item) => {
-        const Icon = Icons[item.icon as keyof typeof Icons];
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-              pathname === item.href
-                ? "bg-accent text-accent-foreground"
-                : "transparent"
-            )}
-          >
-            <Icon className="mr-2 h-4 w-4" />
-            <span>{item.title}</span>
-          </Link>
-        );
-      })}
+    <div className="relative">
+      <div 
+        className={cn(
+          "transition-all duration-300 h-full py-2",
+          isCollapsed ? "w-16" : "w-[280px]"
+        )}
+      >
+        <nav 
+          className={cn(
+            "flex flex-col space-y-2 h-full",
+            className
+          )} 
+          {...props}
+        >
+          {items.map((item) => {
+            const Icon = Icons[item.icon as keyof typeof Icons];
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors",
+                  pathname === item.href
+                    ? "bg-accent text-accent-foreground"
+                    : "transparent",
+                  isCollapsed && "justify-center px-0"
+                )}
+                title={isCollapsed ? item.title : undefined}
+              >
+                <Icon className={cn("h-5 w-5", isCollapsed ? "mr-0" : "mr-2")} />
+                {!isCollapsed && <span>{item.title}</span>}
+              </Link>
+            );
+          })}
 
-      <div className="mt-auto">
-        <Link href="/dashboard/upgrade">
-          <Button
-            className="w-full justify-start bg-brand hover:bg-brand/90"
-            size="sm"
-          >
-            <Icons.creditCard className="mr-2 h-4 w-4" />
-            Upgrade to Premium
-          </Button>
-        </Link>
+          <div className={cn("mt-auto", isCollapsed && "px-0")}>
+            {!isCollapsed && (
+              <Link href="/dashboard/upgrade">
+                <Button
+                  className="w-full justify-start bg-brand hover:bg-brand/90"
+                  size="sm"
+                >
+                  <Icons.creditCard className="mr-2 h-4 w-4" />
+                  Upgrade to Premium
+                </Button>
+              </Link>
+            )}
+          </div>
+        </nav>
       </div>
-    </nav>
+      
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute -right-3 top-2 h-6 w-6 rounded-full border border-border shadow-sm bg-background hidden md:flex items-center justify-center"
+        onClick={toggleSidebar}
+      >
+        {isCollapsed ? (
+          <ChevronRight className="h-3 w-3" />
+        ) : (
+          <ChevronLeft className="h-3 w-3" />
+        )}
+      </Button>
+    </div>
   );
 } 

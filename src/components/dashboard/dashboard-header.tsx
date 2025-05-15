@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Icons } from "@/components/icons";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useSidebar } from "./sidebar-context";
+import { X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,15 +19,27 @@ import {
 
 export function DashboardHeader() {
   const { data: session } = useSession();
+  const { toggleSidebar } = useSidebar();
+  const [showPremiumAlert, setShowPremiumAlert] = useState(true);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background">
       <div className="container flex h-16 items-center justify-between py-4">
-        <div className="flex gap-2 text-xl font-bold">
-          <Link href="/">
-            <span className="text-brand">easybudget</span><span className="text-slate-700">.ing</span>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={toggleSidebar}
+          >
+            <Icons.menu className="h-5 w-5" />
+          </Button>
+          <Link href="/" className="flex gap-2 text-xl font-bold">
+            <span className="text-brand">easybudget</span>
+            <span className="text-slate-700">.ing</span>
           </Link>
         </div>
+
         <div className="flex items-center gap-4">
           {session?.user ? (
             <DropdownMenu>
@@ -55,6 +70,9 @@ export function DashboardHeader() {
                   <Link href="/dashboard/profile">Profile</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link href="/dashboard/billing">Billing</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link href="/dashboard/settings">Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -78,6 +96,33 @@ export function DashboardHeader() {
           )}
         </div>
       </div>
+
+      {/* Premium Alert Banner */}
+      {showPremiumAlert && (
+        <div className="bg-brand/10 border-y border-brand/20 py-2 px-4">
+          <div className="container flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Icons.star className="h-4 w-4 text-brand" />
+              <p className="text-sm text-slate-800">
+                Upgrade to Premium for unlimited budgets and advanced features.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="brand" className="h-7 px-2 py-1 text-xs">
+                Upgrade
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6"
+                onClick={() => setShowPremiumAlert(false)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

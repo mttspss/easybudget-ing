@@ -37,6 +37,7 @@
     --chart-5: 27 87% 67%;
     --radius: 0.75rem;
     --brand: 142 70% 45%;
+    --brand-rgb: 31, 196, 115;
     --brand-foreground: 0 0% 100%;
     --brand-dark: 142 75% 36%;
     --positive: 158 64% 40%;
@@ -66,6 +67,7 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    --brand-rgb: 31, 196, 115;
   }
 }
 
@@ -73,7 +75,7 @@
   * {
     @apply border-border;
   }
-  body {
+body {
     @apply bg-background text-foreground;
   }
 }
@@ -84,6 +86,10 @@
 
 .bg-brand {
   background-color: hsl(var(--brand));
+}
+
+.brand-opacity-20 {
+  background-color: rgba(var(--brand-rgb), 0.2);
 }
 
 .bg-brand-dark {

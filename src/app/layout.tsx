@@ -29,7 +29,7 @@ export default function RootLayout({
         <Providers>
           <div className="relative flex min-h-screen flex-col">
             <Navbar />
-            {children}
+        {children}
           </div>
           <Toaster />
         </Providers>

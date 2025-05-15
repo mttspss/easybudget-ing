@@ -51,6 +51,8 @@ model User {
   accounts      Account[]
   sessions      Session[]
   subscription  Subscription?
+  transactions  Transaction[]
+  categories    Category[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }
@@ -76,4 +78,35 @@ model Subscription {
   isPremium              Boolean   @default(false)
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
+}
+
+// Financial Transaction Models
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+model Transaction {
+  id         String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String          @db.ObjectId
+  type       TransactionType
+  amount     Float
+  title      String          @default("Untitled")
+  categoryId String?         @db.ObjectId
+  date       DateTime        @default(now())
+  note       String?
+  imageUrl   String?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id])
+}
+
+model Category {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  name   String
+  emoji  String @default("💸")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 }

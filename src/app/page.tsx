@@ -11,12 +11,12 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="bg-slate-50 py-20">
+      <section className="bg-slate-50 py-24 md:py-32">
         <div className="container max-w-[1200px] px-4 md:px-6">
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-12 xl:gap-16">
             <div className="flex flex-col justify-center space-y-6">
               <div className="space-y-4">
-                <h1 className="text-4xl max-w-2xl leading-tight font-bold tracking-tighter sm:text-5xl xl:text-6xl/none text-slate-800">
+                <h1 className="max-w-xl text-[clamp(2.5rem,6vw,4rem)] font-extrabold leading-tight tracking-tighter text-slate-800">
                   Take control of your <span className="text-brand">finances</span>
                 </h1>
                 <p className="max-w-[600px] text-slate-500 md:text-xl">
@@ -36,17 +36,85 @@ export default function Home() {
                   duration={500}
                   className="cursor-pointer"
                 >
-                  <Button variant="outline" size="lg" className="text-slate-600 hover:text-slate-800">
+                  <Button variant="outline" size="lg" className="border-brand text-brand hover:bg-brand/10">
                     Learn more
                   </Button>
                 </ScrollLink>
               </div>
+              <p className="mt-4 flex items-center gap-2 text-sm text-slate-500">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="#F59E0B"
+                  stroke="#F59E0B"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="#F59E0B"
+                  stroke="#F59E0B"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="#F59E0B"
+                  stroke="#F59E0B"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="#F59E0B"
+                  stroke="#F59E0B"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="#F59E0B"
+                  stroke="#F59E0B"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <span>Trusted by 1,200+ users</span>
+              </p>
             </div>
             <div className="flex items-center justify-center">
               <motion.div 
-                className="relative w-full max-w-[500px] h-[350px] rounded-2xl bg-white shadow-xl overflow-hidden"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: -16, opacity: 1 }}
+                className="relative w-full max-w-[500px] h-[350px] rounded-2xl bg-white shadow-2xl overflow-hidden -translate-y-4"
+                initial={{ rotate: 2, y: 10 }}
+                animate={{ rotate: 0, y: -16 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
               >
                 <div className="absolute top-0 left-0 right-0 h-16 bg-brand p-4">
@@ -523,7 +591,7 @@ export default function Home() {
                       <path d="M20 6 9 17l-5-5" />
                     </svg>
                     <span>Future premium features</span>
-                  </li>
+          </li>
                   <li className="flex items-center">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -541,7 +609,7 @@ export default function Home() {
                       <path d="M20 6 9 17l-5-5" />
                     </svg>
                     <span>VIP priority support</span>
-                  </li>
+          </li>
                   <li className="flex items-center">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
