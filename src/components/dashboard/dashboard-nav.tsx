@@ -36,6 +36,16 @@ export function DashboardNav({ className, ...props }: DashboardNavProps) {
       icon: "pieChart",
     },
     {
+      title: "Import CSV",
+      href: "/dashboard/import/csv",
+      icon: "fileText",
+    },
+    {
+      title: "Import PDF",
+      href: "/dashboard/import/pdf",
+      icon: "fileText",
+    },
+    {
       title: "Settings",
       href: "/dashboard/settings",
       icon: "settings",

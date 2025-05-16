@@ -87,15 +87,16 @@ enum TransactionType {
 }
 
 model Transaction {
-  id         String          @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String          @db.ObjectId
-  type       TransactionType
-  amount     Float
-  title      String          @default("Untitled")
-  categoryId String?         @db.ObjectId
-  date       DateTime        @default(now())
-  note       String?
-  imageUrl   String?
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String          @db.ObjectId
+  type        TransactionType
+  amount      Float
+  title       String          @default("Untitled")
+  description String?
+  categoryId  String?         @db.ObjectId
+  date        DateTime        @default(now())
+  note        String?
+  imageUrl    String?
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [categoryId], references: [id])

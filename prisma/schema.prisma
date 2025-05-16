@@ -92,6 +92,7 @@ model Transaction {
   type        TransactionType
   amount      Float
   title       String   @default("Untitled")
+  description String?
   categoryId  String?  @db.ObjectId
   date        DateTime @default(now())
   note        String?
