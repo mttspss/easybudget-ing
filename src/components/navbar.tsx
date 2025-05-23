@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Image from "next/image";
 
 export function Navbar() {
   const { data: session, status } = useSession();
@@ -21,12 +22,6 @@ export function Navbar() {
   const pathname = usePathname();
   const isHomePage = pathname === "/";
   
-  // Nascondi la navbar nelle pagine di dashboard
-  const isDashboardPage = pathname?.startsWith("/dashboard");
-  if (isDashboardPage) {
-    return null;
-  }
-
   const scrollToSection = (sectionId: string) => {
     if (isHomePage && typeof window !== "undefined") {
       const section = document.getElementById(sectionId);
@@ -41,7 +36,17 @@ export function Navbar() {
       <div className="container flex h-16 max-w-[1200px] items-center justify-between py-4">
         <div className="flex items-center gap-2">
           <Link href="/">
-            <span className="text-2xl font-bold text-brand">easybudget.ing</span>
+            <div className="flex items-center">
+              <Image 
+                src="/images/logos/Mylogo.png" 
+                alt="easybudget.ing" 
+                width={28}
+                height={28}
+                className="mr-2"
+                priority
+              />
+              <span className="text-2xl font-bold text-brand">easybudget.ing</span>
+            </div>
           </Link>
         </div>
         
@@ -80,6 +85,26 @@ export function Navbar() {
               </Link>
             </>
           )}
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger className="text-slate-500 hover:text-brand cursor-pointer">
+              Legal
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem asChild>
+                <Link href="/terms-of-service">Terms of Service</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/privacy-policy">Privacy Policy</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/security">Security</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/changelog">Changelog</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         <div className="flex items-center gap-4">

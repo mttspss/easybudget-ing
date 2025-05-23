@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { PlusCircle, FileUp, Filter, Search, MoreHorizontal } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { PlusCircle, FileUp, Filter, Search, MoreHorizontal, ArrowUpDown, ChevronDown } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -28,7 +27,7 @@ import { cn } from "@/lib/utils";
 import { AddTransactionForm } from "@/components/transaction/add-transaction-form";
 import { useTransactions, mutateTransactions } from "@/hooks/useTransactions";
 import { Transaction as PrismaTransaction, Category } from "@/generated/prisma";
-import { format } from "date-fns";
+import { format, getMonth, getYear } from "date-fns";
 import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 import { ErrorState } from "@/components/ui/error-state";
 import {
@@ -42,6 +41,23 @@ import { toast } from "sonner";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 // Define a custom transaction type that includes the category relationship
 interface Transaction extends PrismaTransaction {
@@ -60,12 +76,33 @@ const categories = [
   { name: "Other", color: "#6b7280", emoji: "📌" },
 ];
 
+const months = [
+  "January", "February", "March", "April", "May", "June", 
+  "July", "August", "September", "October", "November", "December"
+];
+
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
 export default function IncomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIncome, setSelectedIncome] = useState<Transaction | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  
+  // Filtering state
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(months[new Date().getMonth()]);
+  const [selectedYear, setSelectedYear] = useState<number | null>(new Date().getFullYear());
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<string>("date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   
   // Fetch transactions from the API
   const { data: transactions, isLoading, error } = useTransactions({});
@@ -79,12 +116,77 @@ export default function IncomePage() {
   // Cast the transactions to our custom type and filter only INCOME type
   const incomes = (transactions as Transaction[]).filter(t => t.type === "INCOME");
   
-  // Filter incomes based on search query
-  const filteredIncomes = incomes.filter(
+  // Apply date filtering
+  let filteredByDate = incomes;
+  if (selectedMonth !== null && selectedYear !== null) {
+    const monthIndex = months.indexOf(selectedMonth);
+    filteredByDate = incomes.filter(income => {
+      const incomeDate = new Date(income.date);
+      return getMonth(incomeDate) === monthIndex && getYear(incomeDate) === selectedYear;
+    });
+  }
+  
+  // Apply category filtering
+  let filteredByCategory = filteredByDate;
+  if (selectedCategory !== null) {
+    filteredByCategory = filteredByDate.filter(income => 
+      income.category?.name === selectedCategory
+    );
+  }
+  
+  // Apply search filtering
+  const filteredIncomes = filteredByCategory.filter(
     (income) =>
       (income.title?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
       (income.note?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
       (income.category?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Apply sorting
+  const sortedIncomes = [...filteredIncomes].sort((a, b) => {
+    if (sortField === "title") {
+      const aValue = a.title || "";
+      const bValue = b.title || "";
+      return sortDirection === "asc" 
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    }
+    else if (sortField === "date") {
+      const aValue = new Date(a.date).getTime();
+      const bValue = new Date(b.date).getTime();
+      return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
+    }
+    else if (sortField === "amount") {
+      return sortDirection === "asc" ? a.amount - b.amount : b.amount - a.amount;
+    }
+    return 0;
+  });
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentIncomes = sortedIncomes.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedIncomes.length / itemsPerPage);
+
+  // Handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
+  // Get unique categories from incomes
+  const uniqueCategories = Array.from(
+    new Set(
+      incomes
+        .map(income => income.category?.name)
+        .filter((name): name is string => name !== undefined && name !== null)
+    )
   );
 
   const handleDeleteIncome = async (id: string) => {
@@ -158,7 +260,77 @@ export default function IncomePage() {
 
   // Helper function to format dates consistently
   const formatDate = (date: Date) => {
-    return format(new Date(date), "yyyy-MM-dd");
+    return format(new Date(date), "dd MMM yy");
+  };
+
+  // Generate the pagination items
+  const renderPaginationItems = () => {
+    const items = [];
+    
+    // Add first page
+    items.push(
+      <PaginationItem key="first">
+        <PaginationLink 
+          href="#" 
+          onClick={(e) => { e.preventDefault(); paginate(1); }} 
+          isActive={currentPage === 1}
+        >
+          1
+        </PaginationLink>
+      </PaginationItem>
+    );
+    
+    // Add ellipsis if needed
+    if (currentPage > 3) {
+      items.push(
+        <PaginationItem key="ellipsis-1">
+          <PaginationEllipsis />
+        </PaginationItem>
+      );
+    }
+    
+    // Add pages around current page
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      if (i >= 2 && i < totalPages) {
+        items.push(
+          <PaginationItem key={i}>
+            <PaginationLink 
+              href="#" 
+              onClick={(e) => { e.preventDefault(); paginate(i); }} 
+              isActive={currentPage === i}
+            >
+              {i}
+            </PaginationLink>
+          </PaginationItem>
+        );
+      }
+    }
+    
+    // Add ellipsis if needed
+    if (currentPage < totalPages - 2 && totalPages > 3) {
+      items.push(
+        <PaginationItem key="ellipsis-2">
+          <PaginationEllipsis />
+        </PaginationItem>
+      );
+    }
+    
+    // Add last page if there's more than one page
+    if (totalPages > 1) {
+      items.push(
+        <PaginationItem key="last">
+          <PaginationLink 
+            href="#" 
+            onClick={(e) => { e.preventDefault(); paginate(totalPages); }} 
+            isActive={currentPage === totalPages}
+          >
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+    
+    return items;
   };
 
   return (
@@ -181,9 +353,101 @@ export default function IncomePage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="icon" title="Filter income">
-            <Filter className="h-4 w-4" />
-          </Button>
+          
+          {/* Filters */}
+          <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline">
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+                <ChevronDown className="h-4 w-4 ml-1" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-4" align="end">
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm">Filter by date</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col space-y-1.5">
+                    <Label htmlFor="month">Month</Label>
+                    <Select
+                      value={selectedMonth || "all"}
+                      onValueChange={(value) => setSelectedMonth(value === "all" ? null : value)}
+                    >
+                      <SelectTrigger id="month">
+                        <SelectValue placeholder="All months" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All months</SelectItem>
+                        {months.map((month) => (
+                          <SelectItem key={month} value={month}>
+                            {month}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col space-y-1.5">
+                    <Label htmlFor="year">Year</Label>
+                    <Select
+                      value={selectedYear?.toString() || "all"}
+                      onValueChange={(value) => setSelectedYear(value === "all" ? null : parseInt(value))}
+                    >
+                      <SelectTrigger id="year">
+                        <SelectValue placeholder="All years" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All years</SelectItem>
+                        {years.map((year) => (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <h4 className="font-medium text-sm">Filter by category</h4>
+                <div className="flex flex-col space-y-1.5">
+                  <Label htmlFor="category">Category</Label>
+                  <Select
+                    value={selectedCategory || "all"}
+                    onValueChange={(value) => setSelectedCategory(value === "all" ? null : value)}
+                  >
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All categories</SelectItem>
+                      {uniqueCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex justify-between pt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedMonth(null);
+                      setSelectedYear(null);
+                      setSelectedCategory(null);
+                      setIsFilterOpen(false);
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setIsFilterOpen(false)}>
+                    Apply Filters
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
 
           {/* Import CSV button */}
           <label
@@ -211,172 +475,239 @@ export default function IncomePage() {
         </div>
       </div>
 
-      {/* Income list */}
-      <div className="grid gap-4">
-        {filteredIncomes.length > 0 ? (
-          filteredIncomes.map((income) => (
-            <Card key={income.id} className="bg-white">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    <div className="rounded-full p-3 bg-primary/10 text-primary text-lg flex items-center justify-center h-12 w-12">
-                      {income.category?.emoji || "💰"}
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="font-semibold text-lg">{income.title || "Untitled"}</div>
-                      <div className="text-muted-foreground text-sm">{income.note || "No description"}</div>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        <Badge variant="outline" className={cn(
-                          income.category?.name === "Salary" && "bg-emerald-100 text-emerald-600 hover:bg-emerald-100",
-                          income.category?.name === "Freelance" && "bg-blue-100 text-blue-600 hover:bg-blue-100",
-                          income.category?.name === "Investments" && "bg-amber-100 text-amber-600 hover:bg-amber-100",
-                          income.category?.name === "Business" && "bg-indigo-100 text-indigo-600 hover:bg-indigo-100",
-                          income.category?.name === "Tax" && "bg-purple-100 text-purple-600 hover:bg-purple-100",
-                          income.category?.name === "Rental" && "bg-pink-100 text-pink-600 hover:bg-pink-100",
-                          income.category?.name === "Gift" && "bg-violet-100 text-violet-600 hover:bg-violet-100",
-                          income.category?.name === "Other" && "bg-gray-100 text-gray-600 hover:bg-gray-100",
-                        )}>
-                          {income.category?.name || "Uncategorized"}
-                        </Badge>
+      {/* Current filter summary */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div>
+          {selectedMonth && selectedYear && (
+            <>Showing income for: <span className="font-medium">{selectedMonth} {selectedYear}</span></>
+          )}
+          {selectedCategory && (
+            <>{selectedMonth && selectedYear ? " in " : "Showing income in "}<span className="font-medium">{selectedCategory}</span> category</>
+          )}
+          {!selectedMonth && !selectedYear && !selectedCategory && (
+            <>Showing all income</>
+          )}
+        </div>
+      </div>
+
+      {/* Income table */}
+      <Card className="overflow-hidden border-border/40">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>
+                <div className="flex items-center cursor-pointer" onClick={() => handleSort("title")}>
+                  Title
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </div>
+              </TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>
+                <div className="flex items-center cursor-pointer" onClick={() => handleSort("date")}>
+                  Date
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </div>
+              </TableHead>
+              <TableHead className="text-right">
+                <div className="flex items-center justify-end cursor-pointer" onClick={() => handleSort("amount")}>
+                  Amount
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </div>
+              </TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {currentIncomes.length > 0 ? (
+              currentIncomes.map((income) => (
+                <TableRow key={income.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                        {income.category?.emoji || "💰"}
+                      </div>
+                      <div>
+                        <div className="font-medium">{income.title || "Untitled"}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          {income.note || "No description"}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <div className="text-xl font-bold">€{income.amount.toFixed(2)}</div>
-                    <div className="text-muted-foreground text-sm">{formatDate(income.date)}</div>
-                    
-                    <div className="mt-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem 
-                            onClick={() => {
-                              setSelectedIncome(income);
-                              setSelectedDate(new Date(income.date));
-                              setShowEditDialog(true);
-                            }}
-                          >
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            className="text-red-600"
-                            onClick={() => handleDeleteIncome(income.id)}
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <Card className="bg-white">
-            <CardContent className="flex flex-col items-center justify-center p-8">
-              <div className="mb-4 h-14 w-14 rounded-full bg-gray-100 flex items-center justify-center">
-                <PlusCircle className="h-7 w-7 text-gray-400" />
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn(
+                      income.category?.name === "Salary" && "bg-emerald-100 text-emerald-600 hover:bg-emerald-100",
+                      income.category?.name === "Freelance" && "bg-blue-100 text-blue-600 hover:bg-blue-100",
+                      income.category?.name === "Investments" && "bg-amber-100 text-amber-600 hover:bg-amber-100",
+                      income.category?.name === "Business" && "bg-indigo-100 text-indigo-600 hover:bg-indigo-100",
+                      income.category?.name === "Tax" && "bg-purple-100 text-purple-600 hover:bg-purple-100",
+                      income.category?.name === "Rental" && "bg-pink-100 text-pink-600 hover:bg-pink-100",
+                      income.category?.name === "Gift" && "bg-violet-100 text-violet-600 hover:bg-violet-100",
+                      income.category?.name === "Other" && "bg-gray-100 text-gray-600 hover:bg-gray-100",
+                    )}>
+                      {income.category?.name || "Uncategorized"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{formatDate(income.date)}</TableCell>
+                  <TableCell className="text-right font-medium text-green-500">
+                    €{income.amount.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedIncome(income);
+                            setShowEditDialog(true);
+                          }}
+                        >
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to delete this income?")) {
+                              handleDeleteIncome(income.id);
+                            }
+                          }}
+                          className="text-red-600"
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                  No income records found for the selected filters
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      
+        {/* Pagination */}
+        {filteredIncomes.length > 0 && (
+          <div className="py-4 border-t border-border/20">
+            <div className="flex items-center justify-between px-4">
+              <div className="text-sm text-muted-foreground">
+                Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredIncomes.length)} of {filteredIncomes.length} income records
               </div>
-              <h3 className="text-lg font-medium">No income records found</h3>
-              <p className="mt-1 text-center text-muted-foreground">
-                {searchQuery ? "Try adjusting your search filters" : "Add your first income to get started"}
-              </p>
-              <Button 
-                onClick={() => setShowAddDialog(true)}
-                className="mt-4"
-              >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Income
-              </Button>
-            </CardContent>
-          </Card>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      href="#" 
+                      onClick={(e) => { 
+                        e.preventDefault(); 
+                        if (currentPage > 1) paginate(currentPage - 1); 
+                      }} 
+                      disabled={currentPage === 1}
+                    />
+                  </PaginationItem>
+                  
+                  {renderPaginationItems()}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      href="#" 
+                      onClick={(e) => { 
+                        e.preventDefault(); 
+                        if (currentPage < totalPages) paginate(currentPage + 1); 
+                      }} 
+                      disabled={currentPage === totalPages}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          </div>
         )}
-      </div>
+      </Card>
 
       {/* Add Income Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Add Income</DialogTitle>
+            <DialogTitle>Add New Income</DialogTitle>
             <DialogDescription>
-              Add a new income record to your budget
+              Enter the details of your income.
             </DialogDescription>
           </DialogHeader>
-          
-          <AddTransactionForm 
-            type="INCOME"
-            onSuccess={() => setShowAddDialog(false)}
-          />
+          <div className="py-4">
+            <AddTransactionForm 
+              onSuccess={() => {
+                setShowAddDialog(false);
+                mutateTransactions();
+              }}
+              type="INCOME"
+            />
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Edit Income Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Edit Income</DialogTitle>
             <DialogDescription>
-              Modify this income record
+              Make changes to your income.
             </DialogDescription>
           </DialogHeader>
-          
           {selectedIncome && (
             <div className="grid gap-4 py-4">
-              {/* Title field */}
-              <div className="grid gap-2">
-                <Label htmlFor="edit-title">Title</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="title" className="text-right">
+                  Title
+                </Label>
                 <Input
-                  id="edit-title"
-                  placeholder="e.g. Monthly Salary"
+                  id="title"
                   value={selectedIncome.title || ""}
-                  onChange={(e) => setSelectedIncome({
-                    ...selectedIncome,
-                    title: e.target.value
-                  })}
+                  onChange={(e) => setSelectedIncome({...selectedIncome, title: e.target.value})}
+                  className="col-span-3"
                 />
               </div>
-
-              {/* Amount field */}
-              <div className="grid gap-2">
-                <Label htmlFor="edit-amount">Amount (€)</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="amount" className="text-right">
+                  Amount
+                </Label>
                 <Input
-                  id="edit-amount"
+                  id="amount"
                   type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={selectedIncome.amount || 0}
-                  onChange={(e) => setSelectedIncome({
-                    ...selectedIncome,
-                    amount: parseFloat(e.target.value) || 0
-                  })}
+                  value={selectedIncome.amount}
+                  onChange={(e) => setSelectedIncome({...selectedIncome, amount: parseFloat(e.target.value)})}
+                  className="col-span-3"
                 />
               </div>
-
-              {/* Category field */}
-              <div className="grid gap-2">
-                <Label htmlFor="edit-category">Category</Label>
-                <Select
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="category" className="text-right">
+                  Category
+                </Label>
+                <Select 
                   value={selectedIncome.category?.name || ""}
                   onValueChange={(value) => {
-                    const selectedCategory = categories.find(c => c.name === value);
+                    const selectedCategory = categories.find(cat => cat.name === value);
                     setSelectedIncome({
-                      ...selectedIncome,
+                      ...selectedIncome, 
                       category: {
-                        ...selectedIncome.category,
+                        id: "",
                         name: value,
-                        emoji: selectedCategory?.emoji || "💰"
-                      } as Category
-                    });
+                        emoji: selectedCategory?.emoji || "💰",
+                        userId: "",
+                      }
+                    })
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -391,31 +722,30 @@ export default function IncomePage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Date field */}
-              <div className="grid gap-2">
-                <Label>Date</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="date" className="text-right">
+                  Date
+                </Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
+                      variant={"outline"}
+                      className={cn(
+                        "col-span-3 justify-start text-left font-normal",
+                        !selectedIncome.date && "text-muted-foreground"
+                      )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "PPP") : "Select a date"}
+                      {selectedIncome.date ? format(new Date(selectedIncome.date), "PPP") : <span>Pick a date</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={selectedDate}
+                      selected={new Date(selectedIncome.date)}
                       onSelect={(date) => {
-                        setSelectedDate(date);
                         if (date) {
-                          setSelectedIncome({
-                            ...selectedIncome,
-                            date: date
-                          });
+                          setSelectedIncome({...selectedIncome, date})
                         }
                       }}
                       initialFocus
@@ -423,30 +753,22 @@ export default function IncomePage() {
                   </PopoverContent>
                 </Popover>
               </div>
-
-              {/* Notes field */}
-              <div className="grid gap-2">
-                <Label htmlFor="edit-note">Notes</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="note" className="text-right">
+                  Note
+                </Label>
                 <Textarea
-                  id="edit-note"
-                  placeholder="Add some notes..."
+                  id="note"
                   value={selectedIncome.note || ""}
-                  onChange={(e) => setSelectedIncome({
-                    ...selectedIncome,
-                    note: e.target.value
-                  })}
+                  onChange={(e) => setSelectedIncome({...selectedIncome, note: e.target.value})}
+                  className="col-span-3"
                 />
               </div>
             </div>
           )}
-          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateIncome}>
-              Save Changes
-            </Button>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+            <Button type="submit" onClick={handleUpdateIncome}>Save changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

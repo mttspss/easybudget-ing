@@ -1,0 +1,10 @@
+/* TEAM */
+Creator: easybudget.ing Team
+Contact: info@easybudget.ing
+Location: Italy
+
+/* SITE */
+Last update: 2024/07/14
+Standards: HTML5, CSS3, JavaScript
+Components: Next.js, React, Tailwind CSS
+Software: Visual Studio Code, Git 

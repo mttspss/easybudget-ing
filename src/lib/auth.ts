@@ -3,6 +3,13 @@ import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/db";
 
+interface GoogleProfile {
+  sub: string;
+  name: string;
+  email: string;
+  picture: string;
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: {
@@ -18,6 +25,14 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      profile(profile: GoogleProfile) {
+        return {
+          id: profile.sub,
+          name: profile.name,
+          email: profile.email,
+          image: profile.picture,
+        };
+      },
     }),
   ],
   callbacks: {
@@ -26,12 +41,19 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.name = token.name;
         session.user.email = token.email;
-        session.user.image = token.picture;
+        session.user.image = token.picture as string;
       }
-
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, profile, account }) {
+      if (account && profile) {
+        const googleProfile = profile as GoogleProfile;
+        token.id = googleProfile.sub;
+        token.name = googleProfile.name;
+        token.email = googleProfile.email;
+        token.picture = googleProfile.picture;
+      }
+
       const dbUser = await prisma.user.findFirst({
         where: {
           email: token.email,
@@ -41,20 +63,15 @@ export const authOptions: NextAuthOptions = {
         },
       });
 
-      if (!dbUser) {
-        if (user) {
-          token.id = user.id;
-        }
-        return token;
+      if (dbUser) {
+        token.id = dbUser.id;
+        token.name = dbUser.name;
+        token.email = dbUser.email;
+        token.picture = dbUser.image;
+        token.isPremium = dbUser.subscription?.isPremium || false;
       }
 
-      return {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        picture: dbUser.image,
-        isPremium: dbUser.subscription?.isPremium || false,
-      };
+      return token;
     },
   },
 }; 

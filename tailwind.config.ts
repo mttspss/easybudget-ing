@@ -1,5 +1,4 @@
 import type { Config } from "tailwindcss";
-// @ts-expect-error - tailwindcss-animate doesn't have type definitions
 import animate from "tailwindcss-animate";
 
 const config: Config = {

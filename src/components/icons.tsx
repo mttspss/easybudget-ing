@@ -2,6 +2,8 @@ import {
   AlertTriangle,
   ArrowRight,
   Check,
+  CheckCircle2,
+  CircleDollarSign,
   ChevronLeft,
   ChevronRight,
   Command,
@@ -26,6 +28,10 @@ import {
   User,
   X,
   Layout,
+  LayoutDashboard,
+  LogOut,
+  BarChart,
+  Target,
 } from "lucide-react";
 
 export const Icons = {
@@ -89,4 +95,10 @@ export const Icons = {
   image: Image,
   add: Plus,
   creditCard: CreditCard,
+  checkCircle2: CheckCircle2,
+  circleDollarSign: CircleDollarSign,
+  layoutDashboard: LayoutDashboard,
+  logOut: LogOut,
+  barChart: BarChart,
+  target: Target,
 }; 

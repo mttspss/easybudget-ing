@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { UserAuthForm } from "@/components/auth/user-auth-form";
 import { Button } from "@/components/ui/button";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Sign In - BudgetPro",
@@ -43,7 +44,9 @@ export default function SignInPage() {
             Sign in to your account to continue
           </p>
         </div>
-        <UserAuthForm />
+        <Suspense fallback={<div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div></div>}>
+          <UserAuthForm />
+        </Suspense>
         <p className="px-8 text-center text-sm text-muted-foreground">
           <Link
             href="/auth/signup"

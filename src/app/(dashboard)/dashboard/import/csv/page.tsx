@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Papa, { ParseResult } from "papaparse";
 import { Button } from "@/components/ui/button"; 
-import { Upload } from "lucide-react";
+import { Upload, CheckCircle, AlertCircle } from "lucide-react";
+import { mutateTransactions } from "@/hooks/useTransactions";
 
 // Define a type for parsed rows when header: true
 interface CsvRow {
@@ -57,14 +58,18 @@ export default function ImportCsvPage() {
   const [csvData, setCsvData] = useState<CsvRow[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [fileName, setFileName] = useState<string>("");
-  // Aggiunto stato per la mappatura delle colonne
+  const [selectedRowForNewCategory, setSelectedRowForNewCategory] = useState<number | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState<string>("");
+
+  // State for column mapping
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
     date: null,
     amount: null,
     description: null,
     category: null,
   });
-  // Stato per la configurazione della determinazione del tipo
+  
+  // State for transaction type determination
   const [typeConfig, setTypeConfig] = useState<TransactionTypeConfig>({
     strategy: 'sign', // Default
     creditColumn: null,
@@ -74,7 +79,7 @@ export default function ImportCsvPage() {
     expenseValues: 'debit,dr,d,expense,uscita,addebito',
   });
 
-  // Nuovo stato per i dati pronti per l'anteprima
+  // State for prepared preview data
   const [previewData, setPreviewData] = useState<ProcessedRow[]>([]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -327,6 +332,47 @@ export default function ImportCsvPage() {
       )
     );
   };
+  
+  // Handle changing the category for a specific row
+  const handleChangeCategoryForRow = (rowIndex: number, categoryValue: string) => {
+    if (categoryValue === 'new') {
+      setSelectedRowForNewCategory(rowIndex);
+      setNewCategoryName('');
+      return;
+    }
+    
+    setPreviewData(prev =>
+      prev.map((row, idx) =>
+        idx === rowIndex ? { 
+          ...row, 
+          mappedData: { 
+            ...row.mappedData, 
+            categoryStr: categoryValue 
+          } 
+        } : row
+      )
+    );
+  };
+  
+  // Handle creating a new category for a specific row
+  const handleCreateCategoryForRow = (rowIndex: number) => {
+    if (!newCategoryName.trim()) return;
+    
+    setPreviewData(prev =>
+      prev.map((row, idx) =>
+        idx === rowIndex ? { 
+          ...row, 
+          mappedData: { 
+            ...row.mappedData, 
+            categoryStr: newCategoryName.trim() 
+          } 
+        } : row
+      )
+    );
+    
+    setSelectedRowForNewCategory(null);
+    setNewCategoryName('');
+  };
 
   const isImportReady = (): boolean => {
     // Logica di base: almeno una riga da importare e mappature essenziali presenti
@@ -337,6 +383,10 @@ export default function ImportCsvPage() {
     
     return previewData.some(row => !row.isExcluded && row.errors.length === 0 && row.calculatedType && row.finalAmount !== null);
   };
+
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSuccess, setImportSuccess] = useState<{message: string, count: number} | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const handleSubmitTransactions = async () => {
     const transactionsToImport = previewData.filter(row => 
@@ -349,35 +399,55 @@ export default function ImportCsvPage() {
       date: row.parsedDate!,
       description: row.mappedData.descriptionStr || "N/A",
       amount: row.finalAmount!,
-      type: row.calculatedType!,
-      category: row.mappedData.categoryStr || undefined, // o null se il backend lo preferisce
-      // userId dovrà essere aggiunto dal backend usando la sessione NextAuth
+      type: row.calculatedType === 'income' ? 'INCOME' : 'EXPENSE', // Explicitly use the correct enum values
+      category: row.mappedData.categoryStr || undefined,
+      // User ID will be added by the backend using NextAuth session
     }));
 
     if (transactionsToImport.length === 0) {
-      alert("No valid transactions to import.");
+      setImportError("No valid transactions to import.");
       return;
     }
 
-    console.log("Submitting transactions:", transactionsToImport);
-    alert(`Would import ${transactionsToImport.length} transactions. Backend integration needed.`);
-    // TODO: Chiamata API a /api/transactions/bulk
-    // try {
-    //   const response = await fetch('/api/transactions/bulk', {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify(transactionsToImport),
-    //   });
-    //   if (!response.ok) {
-    //     throw new Error((await response.json()).message || 'Failed to import transactions');
-    //   }
-    //   alert('Transactions imported successfully!');
-    //   // TODO: Invalida cache SWR/React Query o chiama mutateTransactions()
-    //   setCsvData([]); setHeaders([]); setPreviewData([]); setFileName(""); // Reset UI
-    // } catch (error) {
-    //   console.error("Import error:", error);
-    //   alert(`Import failed: ${error.message}`);
-    // }
+    setIsImporting(true);
+    setImportSuccess(null);
+    setImportError(null);
+    
+    try {
+      console.log("Submitting transactions:", transactionsToImport);
+      
+      const response = await fetch('/api/transactions/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(transactionsToImport),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to import transactions");
+      }
+      
+      const result = await response.json();
+      
+      // Success handling
+      setImportSuccess(result);
+      
+      // Reset UI form
+      setCsvData([]);
+      setHeaders([]);
+      setPreviewData([]);
+      setFileName("");
+      
+      // Refresh all transaction data in the app
+      mutateTransactions();
+      
+    } catch (error) {
+      console.error("Import error:", error);
+      setImportError(error instanceof Error ? error.message : "An unknown error occurred");
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   return (
@@ -599,7 +669,69 @@ export default function ImportCsvPage() {
                     <td className="px-2 py-4"><input type="checkbox" className="form-checkbox h-4 w-4 text-indigo-600" checked={pRow.isExcluded} onChange={() => handleToggleExcludeRow(index)} /></td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pRow.parsedDate ? pRow.parsedDate.toLocaleDateString() : <span className="text-red-500">{pRow.mappedData.dateStr || 'N/A'}</span>}</td>
                     <td className="px-6 py-4 text-sm text-gray-700">{pRow.mappedData.descriptionStr || <span className="text-red-500">N/A</span>}</td>
-                    <td className="px-6 py-4 text-sm text-gray-700">{pRow.mappedData.categoryStr || '-'}</td>
+                    <td className="px-6 py-4 text-sm">
+                      <div className="relative">
+                        <select 
+                          value={pRow.mappedData.categoryStr || ''} 
+                          onChange={(e) => handleChangeCategoryForRow(index, e.target.value)}
+                          className="form-select block w-full py-1 px-2 border rounded-md shadow-sm sm:text-sm border-gray-300"
+                          disabled={pRow.isExcluded}
+                        >
+                          <option value="">- Select Category -</option>
+                          {pRow.calculatedType === 'income' && (
+                            <>
+                              <optgroup label="Income Categories">
+                                <option value="Salary">Salary</option>
+                                <option value="Freelance">Freelance</option>
+                                <option value="Investments">Investments</option>
+                                <option value="Gifts">Gifts</option>
+                                <option value="Refunds">Refunds</option>
+                              </optgroup>
+                            </>
+                          )}
+                          {pRow.calculatedType === 'expense' && (
+                            <>
+                              <optgroup label="Expense Categories">
+                                <option value="Food">Food</option>
+                                <option value="Transportation">Transportation</option>
+                                <option value="Housing">Housing</option>
+                                <option value="Utilities">Utilities</option>
+                                <option value="Entertainment">Entertainment</option>
+                                <option value="Health">Health</option>
+                                <option value="Shopping">Shopping</option>
+                              </optgroup>
+                            </>
+                          )}
+                          <option value="new">+ Create New Category</option>
+                        </select>
+                        {selectedRowForNewCategory === index && (
+                          <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-sm z-10 p-2">
+                            <input 
+                              type="text"
+                              value={newCategoryName}
+                              onChange={(e) => setNewCategoryName(e.target.value)}
+                              placeholder="Category name"
+                              className="w-full mb-2 text-sm p-1 border border-gray-300 rounded"
+                            />
+                            <div className="flex justify-end gap-1">
+                              <button 
+                                onClick={() => setSelectedRowForNewCategory(null)}
+                                className="px-2 py-1 text-xs text-gray-700 bg-gray-100 rounded"
+                              >
+                                Cancel
+                              </button>
+                              <button 
+                                onClick={() => handleCreateCategoryForRow(index)}
+                                className="px-2 py-1 text-xs text-white bg-blue-600 rounded"
+                                disabled={!newCategoryName.trim()}
+                              >
+                                Add
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-sm">
                       <select 
                         value={pRow.calculatedType || ''} 
@@ -619,10 +751,38 @@ export default function ImportCsvPage() {
               </tbody>
             </table>
           </div>
-          <div className="mt-6 flex justify-end">
-            <Button onClick={handleSubmitTransactions} disabled={!isImportReady()}>
-              Import ({previewData.filter(row => !row.isExcluded && row.errors.length === 0 && row.calculatedType && row.finalAmount !== null).length}) Transactions
-            </Button>
+          <div className="mt-6">
+            {importSuccess && (
+              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md flex items-start">
+                <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-green-800">Import Successful</h4>
+                  <p className="text-green-700 text-sm">{importSuccess.message}</p>
+                </div>
+              </div>
+            )}
+            
+            {importError && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md flex items-start">
+                <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-red-800">Import Failed</h4>
+                  <p className="text-red-700 text-sm">{importError}</p>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleSubmitTransactions} 
+                disabled={!isImportReady() || isImporting}
+              >
+                {isImporting 
+                  ? "Importing..." 
+                  : `Import (${previewData.filter(row => !row.isExcluded && row.errors.length === 0 && row.calculatedType && row.finalAmount !== null).length}) Transactions`
+                }
+              </Button>
+            </div>
           </div>
         </div>
       )}
