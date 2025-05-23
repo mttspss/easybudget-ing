@@ -219,11 +219,12 @@ const config = {
     "db"
   ],
   "activeProvider": "mongodb",
+  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {
         "fromEnvVar": "DATABASE_URL",
-        "value": "mongodb+srv://admin:WvUQv5uFNjrl9fUD@easybudgeting-cluster.zlwvfkm.mongodb.net/budgeting?retryWrites=true&w=majority&appName=easybudgeting-cluster"
+        "value": null
       }
     }
   },
